@@ -20,6 +20,8 @@ const Tecla: Record<string, number> = {
 let tempo = 0
 let velocidade = 0
 let jogando = true
+let vidas = 3
+let acelerar = false
 
 class Piloto {
   posicao = {
@@ -51,17 +53,27 @@ class Piloto {
     if (roda.traseira - tamanho > this.posicao.y) {
       this.velocidade.vertical += 0.1
     } else {
+      acelerar = true
       this.velocidade.vertical -= this.posicao.y - (roda.traseira - tamanho)
       this.posicao.y = roda.traseira - tamanho
-
       deCastigo = 1
     }
 
     if (!jogando || (deCastigo && Math.abs(this.rotacao) > Math.PI * 0.5)) {
-      jogando = false
-      this.velocidade.rotacao = 5
-      Tecla.ArrowUp = 1
-      this.posicao.x -= velocidade * 5
+      if (vidas !== 0) {
+        vidas--
+        this.posicao.y = 0
+        this.velocidade.rotacao = 0
+        this.rotacao = 0
+        deCastigo = 0
+        acelerar = false
+      }
+      if (vidas === 0) {
+        jogando = false
+        this.velocidade.rotacao = 0
+        Tecla.ArrowUp = 1
+        this.posicao.x -= velocidade * 2
+      }
     }
 
     const angulo = Math.atan2(
@@ -119,30 +131,66 @@ function noise(x: number) {
 }
 
 function desenhaCenario() {
-  velocidade -= (velocidade - (Tecla.ArrowUp - Tecla.ArrowDown)) * 0.1
-  tempo += 10 * velocidade
+  if (Tecla.ArrowUp == 1 && jogando && acelerar) {
+    velocidade -= (velocidade - (Tecla.ArrowUp - Tecla.ArrowDown)) * 0.1
+    tempo += 10 * velocidade
+  }
+
+  if (!jogando) {
+    velocidade -= (velocidade - (Tecla.ArrowUp - Tecla.ArrowDown)) * 0.1
+    tempo += 10 * velocidade
+  }
 
   contexto.fillStyle = 'cornflowerblue'
   contexto.fillRect(0, 0, width, height)
-  contexto.fillStyle = 'burlywood'
-
   contexto.beginPath()
   contexto.moveTo(0, height)
 
+  contexto.fillStyle = 'burlywood'
   for (let i = 0; i < width; i++) {
     contexto.lineTo(i, height - noise(tempo + i) * 0.25)
   }
-
   contexto.lineTo(width, height)
   contexto.fill()
 
-  piloto.desenha()
+  contexto.fillStyle = 'black'
+  contexto.fillText('Crosszin', 50, 50)
+  contexto.fillText('Vidas: ' + vidas + '/3', 50, 90)
 
+  contexto.font = '20px Roboto'
+
+  if (vidas === 0) {
+    contexto.font = '25px Roboto'
+    contexto.textBaseline = 'middle'
+    contexto.fillStyle = 'red'
+    contexto.fillText('Perdeu parça!', width / 2.5, height / 3)
+    contexto.strokeText('Aperte enter e boa sorte!', width / 2.2, height / 2.2)
+  }
+
+  piloto.desenha()
   requestAnimationFrame(desenhaCenario)
 }
 
 onkeydown = (event) => {
-  Tecla[event.key] = 1
+  const key = event.key
+
+  if (key === 'ArrowUp') {
+    if (acelerar) {
+      Tecla[event.key] = 1
+    }
+  } else {
+    Tecla[event.key] = 1
+  }
+
+  if (event.key === 'Enter') {
+    jogando = true
+    vidas = 3
+    piloto.velocidade.rotacao = 0
+    piloto.rotacao = 0
+    piloto.posicao.x = width / 2
+    piloto.posicao.y = 0
+    Tecla.ArrowUp = 0
+  }
 }
 onkeyup = (event) => {
   Tecla[event.key] = 0
